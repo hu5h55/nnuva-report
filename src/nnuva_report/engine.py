@@ -132,7 +132,7 @@ def gather_metrics(sys_mgr):
     if to_insert:
         c.executemany('''REPLACE INTO files VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', to_insert)
     
-    removed_paths = set(existing_files.keys()) - current_paths
+    removed_paths = {p for p in (set(existing_files.keys()) - current_paths) if not Path(p).exists()}
     if removed_paths:
         c.executemany("DELETE FROM files WHERE file_path = ?", [(p,) for p in removed_paths])
     conn.commit()

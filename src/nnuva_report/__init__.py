@@ -1,9 +1,10 @@
 # src/nnuva_report/__init__.py
 
 APP_NAME = "nnuva-report"
-VERSION = "5.6.9"
+VERSION = "5.7.0"
 
 CHANGELOG_LINES = [
+    "v5.7.0 (2026-10-18) - FEAT: Added 3-mode Theme Engine (Light / Dark / OLED, defaulting to OLED pitch-black #000000) with 1-click header cycle toggle, segmented menu controls, rim-bordered cards, and live Chart.js canvas re-theming.",
     "v5.6.9 (2026-05-13) - UX: Duration radar axis now uses the 75th-percentile of library durations instead of the absolute max. Outlier multi-hour recordings (concerts, batched TV files) no longer crush typical movie scores — a 90-minute film now scores 100% in a TV-heavy library, where it previously scored ~20%.",
     "v5.6.8 (2026-05-13) - UX: Media Footprint radar axes refined. Replaced weak axes (FPS, Audio Channels) with Duration and Bit Depth. Replaced FPS spec card with Size in the Quantifiable Media Specs grid.",
     "v5.6.7 (2026-05-13) - UX: Media Footprint chart rebuilt as 6-axis hexagonal radar. Normalization now uses real library maxes scanned from rawFiles instead of hardcoded thresholds.",

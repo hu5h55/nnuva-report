@@ -600,6 +600,11 @@ window.openFileModal = function(fileId) {
                     ['Video',      'Bitrate', `(${vBitrate.toFixed(1)}M)`]
                 ];
 
+                const rootStyle = getComputedStyle(document.documentElement);
+                const radarTextColor = rootStyle.getPropertyValue('--text-main').trim() || '#f8fafc';
+                const radarGridColor = rootStyle.getPropertyValue('--grid-line').trim() || 'rgba(148, 163, 184, 0.2)';
+                const radarBgCard = rootStyle.getPropertyValue('--bg-card').trim() || '#080b11';
+
                 window.modalChartInstance = new Chart(ctx, {
                     type: 'radar',
                     data: {
@@ -610,8 +615,8 @@ window.openFileModal = function(fileId) {
                             backgroundColor: nqiColor + '66',
                             borderColor: nqiColor,
                             pointBackgroundColor: nqiColor,
-                            pointBorderColor: '#fff',
-                            pointHoverBackgroundColor: '#fff',
+                            pointBorderColor: radarBgCard,
+                            pointHoverBackgroundColor: radarTextColor,
                             pointHoverBorderColor: nqiColor
                         }]
                     },
@@ -619,9 +624,9 @@ window.openFileModal = function(fileId) {
                         maintainAspectRatio: false,
                         scales: {
                             r: {
-                                angleLines: { display: true, color: 'rgba(128, 128, 128, 0.2)' },
-                                grid: { display: true, color: 'rgba(128, 128, 128, 0.2)' },
-                                pointLabels: { color: 'var(--text-main)', font: { size: 11, weight: 'bold', family: 'monospace' } },
+                                angleLines: { display: true, color: radarGridColor },
+                                grid: { display: true, color: radarGridColor },
+                                pointLabels: { color: radarTextColor, font: { size: 11, weight: 'bold', family: 'monospace' } },
                                 ticks: { display: false, max: 100, min: 0, stepSize: 25 }
                             }
                         },
@@ -3397,31 +3402,78 @@ function initTopCharts() {
 // ==============================================================================
 // 7. THEME ENGINE & BOOTSTRAPPER
 // ==============================================================================
-window.setTheme = function() { /* dark mode disabled — light only */ };
+const NNUVA_THEMES = ['light', 'dark', 'oled'];
+const NNUVA_THEME_ICONS = {
+    light: '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>',
+    dark: '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>',
+    oled: '<span style="font-size:0.95rem;line-height:1;color:var(--primary);">⬢</span>'
+};
+
+window.setTheme = function(mode) {
+    if (!NNUVA_THEMES.includes(mode)) mode = 'oled';
+    try { localStorage.setItem('nnuva_theme_mode', mode); } catch (_) {}
+    applyTheme();
+};
+
+window.cycleTheme = function() {
+    let cur = 'oled';
+    try { cur = localStorage.getItem('nnuva_theme_mode') || 'oled'; } catch (_) {}
+    const idx = NNUVA_THEMES.indexOf(cur);
+    const next = NNUVA_THEMES[(idx + 1) % NNUVA_THEMES.length];
+    window.setTheme(next);
+};
 
 function applyTheme() {
-    const color = '#38bdf8';
-    document.documentElement.setAttribute('data-theme', 'light');
+    let mode = 'oled';
+    try {
+        const saved = localStorage.getItem('nnuva_theme_mode');
+        if (saved && NNUVA_THEMES.includes(saved)) mode = saved;
+    } catch (_) {}
+
+    const color = mode === 'light' ? '#0284c7' : '#38bdf8';
+    document.documentElement.setAttribute('data-theme', mode);
     document.documentElement.style.setProperty('--primary', color);
     document.documentElement.style.setProperty('--primary-glow', `rgba(${hexToRgb(color)}, 0.25)`);
-    document.documentElement.style.setProperty('--primary-bg', `rgba(${hexToRgb(color)}, 0.1)`);
+    document.documentElement.style.setProperty('--primary-bg', `rgba(${hexToRgb(color)}, 0.12)`);
+
+    document.querySelectorAll('[data-theme-opt]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-theme-opt') === mode);
+    });
+
+    const label = mode === 'oled' ? 'OLED' : (mode.charAt(0).toUpperCase() + mode.slice(1));
+    document.querySelectorAll('.theme-cycle-btn').forEach(btn => {
+        btn.title = `Theme: ${label} (click to switch)`;
+        const iconSpan = btn.querySelector('.theme-cycle-icon');
+        if (iconSpan) iconSpan.innerHTML = NNUVA_THEME_ICONS[mode] || NNUVA_THEME_ICONS.oled;
+    });
 
     const rootStyle = getComputedStyle(document.documentElement);
-    const gridColor = '#e2e8f0';
-    const themeBgCard = rootStyle.getPropertyValue('--bg-card').trim() || '#ffffff';
+    const gridColor = rootStyle.getPropertyValue('--grid-line').trim() || (mode === 'light' ? '#e2e8f0' : 'rgba(148, 163, 184, 0.14)');
+    const themeBgCard = rootStyle.getPropertyValue('--bg-card').trim() || (mode === 'light' ? '#ffffff' : '#080b11');
+    const textMuted = rootStyle.getPropertyValue('--text-muted').trim() || '#94a3b8';
+    const textMain = rootStyle.getPropertyValue('--text-main').trim() || '#f8fafc';
 
     try {
         if (typeof Chart !== 'undefined') {
-            Chart.defaults.color = rootStyle.getPropertyValue('--text-muted').trim() || '#64748b';
-            const chartsToUpdate = [chartHist, bResChart, bNqiChart, bResSizeChart, bCodecChart, bAudioChart, bHdrChart, bBitrateScatterChart, bBitrateByResChart, bBitrateHistChart];
+            Chart.defaults.color = textMuted;
+            const chartsToUpdate = [chartHist, bResChart, bNqiChart, bResSizeChart, bCodecChart, bAudioChart, bHdrChart, bBitrateScatterChart, bBitrateByResChart, bBitrateHistChart, window.modalChartInstance];
             chartsToUpdate.forEach(c => {
                 if (!c) return;
                 if (c.options.scales) {
-                    if (c.options.scales.x && c.options.scales.x.grid) c.options.scales.x.grid.color = gridColor;
-                    if (c.options.scales.y && c.options.scales.y.grid) c.options.scales.y.grid.color = gridColor;
+                    if (c.options.scales.x) {
+                        if (c.options.scales.x.grid) c.options.scales.x.grid.color = gridColor;
+                        if (c.options.scales.x.ticks) c.options.scales.x.ticks.color = textMuted;
+                        if (c.options.scales.x.title) c.options.scales.x.title.color = textMuted;
+                    }
+                    if (c.options.scales.y) {
+                        if (c.options.scales.y.grid) c.options.scales.y.grid.color = gridColor;
+                        if (c.options.scales.y.ticks) c.options.scales.y.ticks.color = textMuted;
+                        if (c.options.scales.y.title) c.options.scales.y.title.color = textMuted;
+                    }
                     if (c.options.scales.r) {
                         if (c.options.scales.r.grid) c.options.scales.r.grid.color = gridColor;
                         if (c.options.scales.r.angleLines) c.options.scales.r.angleLines.color = gridColor;
+                        if (c.options.scales.r.pointLabels) c.options.scales.r.pointLabels.color = textMain;
                     }
                 }
                 if (c.config.type === 'line' || c.data.datasets.some(d => d.type === 'line')) {
@@ -3430,7 +3482,7 @@ function applyTheme() {
                         ds.pointHoverBorderColor = ds.borderColor || ds.backgroundColor;
                     });
                 }
-                c.update();
+                c.update('none');
             });
         }
     } catch(e) { console.error("Theme apply error:", e); }
@@ -3587,6 +3639,7 @@ async function bootDashboard() {
                 initTopCharts();
                 initSparkline();
             }
+            applyTheme();
         }
         
         if (Array.isArray(rawFiles) && rawFiles.length > 0) {

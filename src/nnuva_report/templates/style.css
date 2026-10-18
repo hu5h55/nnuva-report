@@ -1,14 +1,31 @@
 /* === CORE THEME VARIABLES === */
-:root {
-    --bg-body: #0f172a;
-    --bg-card: #1e293b;
-    --border: #334155;
+:root,
+[data-theme="dark"] {
+    --bg-body: #0b0f19;
+    --bg-card: #131b2e;
+    --border: #1e293b;
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --brand-text: #ffffff;
     --primary: #38bdf8;
-    --primary-bg: rgba(56, 189, 248, 0.1);
+    --primary-bg: rgba(56, 189, 248, 0.12);
     --crosshair: rgba(248, 250, 252, 0.85);
+    --gavel-bg: rgba(11, 15, 25, 0.90);
+    --grid-line: rgba(148, 163, 184, 0.14);
+}
+
+[data-theme="oled"] {
+    --bg-body: #000000;
+    --bg-card: #080b11;
+    --border: #172030;
+    --text-main: #f8fafc;
+    --text-muted: #8b9bb4;
+    --brand-text: #ffffff;
+    --primary: #38bdf8;
+    --primary-bg: rgba(56, 189, 248, 0.12);
+    --crosshair: rgba(248, 250, 252, 0.85);
+    --gavel-bg: rgba(0, 0, 0, 0.92);
+    --grid-line: rgba(148, 163, 184, 0.11);
 }
 
 [data-theme="light"] {
@@ -18,7 +35,11 @@
     --text-main: #0f172a;
     --text-muted: #64748b;
     --brand-text: #0f172a;
+    --primary: #0284c7;
+    --primary-bg: rgba(2, 132, 199, 0.10);
     --crosshair: rgba(15, 23, 42, 0.85);
+    --gavel-bg: rgba(255, 255, 255, 0.93);
+    --grid-line: #e2e8f0;
 }
 
 /* Custom Scrollbar for Modals */
@@ -78,7 +99,7 @@ h2 { color: var(--text-main); margin: 0; font-weight: 500; display: flex; align-
     .kpi-group-actionable { grid-template-columns: 1fr; }
 }
 
-.kpi-card { background-color: var(--bg-card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-top: 4px solid var(--border); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.kpi-card { background-color: var(--bg-card); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid var(--border); border-top: 4px solid var(--border); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; flex: 1; min-width: 200px; display: flex; flex-direction: column; }
 .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 20px -8px rgba(0,0,0,0.5); }
 .kpi-card.blue { border-top-color: var(--primary); }
 .kpi-card.green { border-top-color: #34d399; }
