@@ -175,7 +175,7 @@ def gather_metrics(sys_mgr):
     c.execute("REPLACE INTO history VALUES (?, ?)", (current_snapshot['date'], json.dumps(current_snapshot)))
     conn.commit()
 
-    c.execute("SELECT snapshot_json FROM history ORDER BY date ASC LIMIT 90")
+    c.execute("SELECT snapshot_json FROM (SELECT date, snapshot_json FROM history ORDER BY date DESC LIMIT 90) ORDER BY date ASC")
     history_log = [json.loads(row[0]) for row in c.fetchall()]
 
     if len(history_log) == 1:

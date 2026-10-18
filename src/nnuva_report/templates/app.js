@@ -2109,6 +2109,8 @@ function runFilterPipeline() {
         // Compute trend across the historical window: how many files were added/removed net,
         // and the percent change from the oldest snapshot to today.
         let trendStr = '';
+        const tDays = Math.round((tDurSec / 3600) / 24);
+        const runtimeBadge = `<span style="color:var(--primary);font-weight:bold;">⏱ ${tHrsStr}${tDays >= 1 ? ` (${tDays}d)` : ''}</span>`;
         if (historyLog && historyLog.length >= 2) {
             const first = historyLog[0]?.total_files || 0;
             const last  = historyLog[historyLog.length - 1]?.total_files || 0;
@@ -2118,9 +2120,9 @@ function runFilterPipeline() {
                 const arrow = diff > 0 ? '▲' : '▼';
                 const color = diff > 0 ? '#34d399' : '#f87171';
                 const sign = diff > 0 ? '+' : '−';
-                trendStr = `<span style="color:${color};font-weight:bold;">${arrow} ${sign}${Math.abs(diff).toLocaleString()}</span> <span style="opacity:0.7;">(${sign}${Math.abs(pct).toFixed(1)}%) · ${tHrsStr}</span>`;
+                trendStr = `${runtimeBadge} <span style="opacity:0.65;">·</span> <span style="color:${color};font-weight:bold;">${arrow} ${sign}${Math.abs(diff).toLocaleString()}</span> <span style="opacity:0.7;">(${sign}${Math.abs(pct).toFixed(1)}%)</span>`;
             } else {
-                trendStr = `<span style="opacity:0.7;">${tHrsStr} total runtime</span>`;
+                trendStr = `${runtimeBadge} <span style="opacity:0.7;">total runtime</span>`;
             }
         }
 
@@ -2132,14 +2134,14 @@ function runFilterPipeline() {
                 const gbStr   = d.added_gb > 0 ? `<span style="color:#34d399;font-weight:bold;"> +${d.added_gb} GB</span>` : '';
                 const rgbStr  = d.removed_gb > 0 ? `<span style="color:#f87171;font-weight:bold;"> −${d.removed_gb} GB</span>` : '';
                 const since   = latestDelta.date;
-                if(kpiMetaFiles) kpiMetaFiles.innerHTML = `${tHrsStr} · since ${since}: ${[addStr, remStr].filter(Boolean).join(' / ')}`;
+                if(kpiMetaFiles) kpiMetaFiles.innerHTML = `${runtimeBadge} · since ${since}: ${[addStr, remStr].filter(Boolean).join(' / ')}`;
                 const kpiMetaStorageDelta = document.getElementById('kpi-meta-storage');
                 if(kpiMetaStorageDelta) kpiMetaStorageDelta.innerHTML = `<span style="opacity:0.7;">Avg: ${avgSizeStr}</span>${[gbStr, rgbStr].filter(Boolean).join('')}`;
             } else {
-                if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || `<span style="opacity:0.7;">${tHrsStr} runtime</span>`;
+                if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || `${runtimeBadge} <span style="opacity:0.7;">runtime</span>`;
             }
         } else {
-            if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || `<span style="opacity:0.7;">${tHrsStr} runtime</span>`;
+            if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || `${runtimeBadge} <span style="opacity:0.7;">runtime</span>`;
         }
         
         updateKPI('storage', formatGb(tBytes), '');
@@ -3867,6 +3869,7 @@ async function bootDashboard() {
     try {
         console.log("NNUVA Dashboard Booting...");
         assertDOM();
+        applyTheme();
 
         // Eagerly create the per-card info bar inside every chart card so it's
         // always visible (empty by default), preventing any layout shift on hover.
