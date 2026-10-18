@@ -336,14 +336,49 @@ function renderLibraryChanges() {
     panel.innerHTML = html;
 }
 
+window.copyTextSafe = function(text, anchorBtn, toastMsg) {
+    const fallbackCopy = () => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+        return ok;
+    };
+    const done = (ok) => {
+        if (ok && anchorBtn && typeof _showCopyPopover === 'function') {
+            _showCopyPopover(anchorBtn, toastMsg || 'Copied!');
+        }
+        showToast(ok ? (toastMsg || 'Copied!') : 'Copy failed');
+    };
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(fallbackCopy()));
+    } else {
+        done(fallbackCopy());
+    }
+};
+
+window.copyCommandCard = function(btn, label) {
+    const cmdEl = btn && btn.closest('.workflow-card') ? btn.closest('.workflow-card').querySelector('.cmd-block') : null;
+    const text = cmdEl ? cmdEl.innerText : '';
+    if (!text) return;
+    window.copyTextSafe(text, btn, `${label || 'Command'} copied!`);
+};
+
 function buildCommandCard(title, desc, cmd, color, btnText = 'Copy') {
-    const safeCmd = cmd.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+    const safeBtn = String(btnText).replace(/'/g, "\\'");
     return `
         <div class="workflow-card" style="border-left: 4px solid ${color}; background: var(--bg-body); margin-bottom: 12px; border-radius: 4px; overflow: hidden; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);">
             <div style="padding: 12px 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
                     <div style="color: ${color}; font-weight: bold; font-size: 0.95rem; margin-right: 15px;">${title}</div>
-                    <button onclick="navigator.clipboard.writeText(this.closest('.workflow-card').querySelector('.cmd-block').innerText); showToast('${btnText} copied!');" style="background: ${color}; color: #0f172a; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: opacity 0.2s; flex-shrink: 0;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">${btnText}</button>
+                    <button type="button" onclick="copyCommandCard(this, '${safeBtn}')" style="background: ${color}; color: #0f172a; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: opacity 0.2s; flex-shrink: 0;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">${btnText}</button>
                 </div>
                 <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px; line-height: 1.4;">${desc}</div>
                 <div class="cmd-block" style="background: #0f172a; color: #34d399; border: 1px solid #334155; border-radius: 4px; padding: 10px 12px; font-family: monospace; font-size: 0.8rem; word-break: break-all; white-space: normal; line-height: 1.5;">${cmd}</div>
