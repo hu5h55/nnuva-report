@@ -1,0 +1,13 @@
+_archive/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+*.html
+!src/nnuva_report/templates/*.html
+*.json
+._*
+.DS_Store
+*~
+#*#
