@@ -1847,6 +1847,41 @@
 
         <div class="section-header-wrap" style="margin-top: 40px;">
             <div>
+                <h2><span style="color: #38bdf8;">⬢ </span>Storage Footprint &amp; Folder Hogs</h2>
+                <span class="section-desc">See which library categories and multi-season series consume the most disk space and GB per hour. Click any bar to filter.</span>
+            </div>
+        </div>
+        <div class="resizable-row" id="storageRow">
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <button class="expand-btn" onclick="toggleFullscreen(this.closest('.chart-container, .trend-container'), this)">⛶</button>
+                    <div class="card-header">
+                        <div class="card-title">Storage by Category</div>
+                        <div class="card-subtitle">Total disk footprint across library folders</div>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="catSizeChart"></canvas></div>
+                </div>
+                <div class="chart-container">
+                    <button class="expand-btn" onclick="toggleFullscreen(this.closest('.chart-container, .trend-container'), this)">⛶</button>
+                    <div class="card-header">
+                        <div class="card-title">Top Series &amp; Collection Hogs</div>
+                        <div class="card-subtitle">Largest multi-file shows &amp; collections by total GB</div>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="seriesHogChart"></canvas></div>
+                </div>
+                <div class="chart-container">
+                    <button class="expand-btn" onclick="toggleFullscreen(this.closest('.chart-container, .trend-container'), this)">⛶</button>
+                    <div class="card-header">
+                        <div class="card-title">Storage Efficiency (GB / Hour)</div>
+                        <div class="card-subtitle">Average gigabytes consumed per hour of playback</div>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="catEfficiencyChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-header-wrap" style="margin-top: 40px;">
+            <div>
                 <h2><span style="color: #818cf8;">⬢ </span>Technical Specifications</h2>
                 <span class="section-desc">Track format adoption,
 codec efficiency,
@@ -2030,6 +2065,30 @@ and distribution.</span>
                     </div>
                 </div>
 
+                <h3 style="color: #38bdf8; margin-top: 30px; margin-bottom: 15px;"><span style="color: #38bdf8;">⬢ </span>Folder Hogs: Top Largest Series &amp; Collections</h3>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr>
+                            <th class="sortable-th" data-sort-key="show" data-table="series" onclick="toggleSeriesSort('show')"><span class="sortable-th-inner"><span>Series / Collection</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="show"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th" data-sort-key="cat" data-table="series" onclick="toggleSeriesSort('cat')"><span class="sortable-th-inner"><span>Category</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="cat"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th" data-sort-key="count" data-table="series" onclick="toggleSeriesSort('count')"><span class="sortable-th-inner"><span>Files</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="count"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th" data-sort-key="dur_sec" data-table="series" onclick="toggleSeriesSort('dur_sec')"><span class="sortable-th-inner"><span>Runtime</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="dur_sec"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th" data-sort-key="gb_hr" data-table="series" onclick="toggleSeriesSort('gb_hr')"><span class="sortable-th-inner"><span>Efficiency</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="gb_hr"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th" data-sort-key="avg_nqi" data-table="series" onclick="toggleSeriesSort('avg_nqi')"><span class="sortable-th-inner"><span>Avg NQI</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="avg_nqi"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th" data-sort-key="reclaim_bytes" data-table="series" onclick="toggleSeriesSort('reclaim_bytes')"><span class="sortable-th-inner"><span>Reclaimable</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="reclaim_bytes"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                            <th class="sortable-th text-right" data-sort-key="bytes" data-table="series" onclick="toggleSeriesSort('bytes')"><span class="sortable-th-inner"><span>Total Size</span><span class="sort-indicator" data-indicator-table="series" data-indicator-key="bytes"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5-5 5 5z" opacity="0.35"/><path d="M7 14l5 5 5-5z" opacity="0.35"/></svg></span></span></th>
+                        </tr></thead>
+                        <tbody id="table-series"></tbody>
+                    </table>
+                    <div class="table-footer">
+                        <span class="table-footer-text" id="footer-text-series">Showing 5</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="table-more-btn" id="less-btn-series" onclick="loadLess('series')" style="display: none;">Less</button>
+                            <button class="table-more-btn" id="more-btn-series" onclick="loadMore('series')">More</button>
+                        </div>
+                    </div>
+                </div>
+
                 <h3 style="color: var(--primary); margin-top: 30px; margin-bottom: 15px;"><span style="color: var(--primary);">⬢ </span>Storage Hogs: Top Largest Files</h3>
                 <div class="table-wrapper">
                     <table>
@@ -2148,9 +2207,12 @@ dynamic content -->
                 <div style="width: 220px; background: var(--bg-body); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;">
                     <button class="filter-tab active" onclick="switchFilterTab('RES')">Resolution</button>
                     <button class="filter-tab" onclick="switchFilterTab('NQI')">NQI Score</button>
+                    <button class="filter-tab" onclick="switchFilterTab('CAT')">Category</button>
                     <button class="filter-tab" onclick="switchFilterTab('VIDEO')">Video Codec</button>
                     <button class="filter-tab" onclick="switchFilterTab('AUDIO_BASE')">Audio Codec</button>
                     <button class="filter-tab" onclick="switchFilterTab('HDR')">Color / HDR</button>
+                    <button class="filter-tab" onclick="switchFilterTab('DEPTH')">Bit Depth</button>
+                    <button class="filter-tab" onclick="switchFilterTab('EXT')">Container</button>
                 </div>
                 <div id="filterChipContainer" style="flex-grow: 1; padding: 25px; display: flex; flex-direction: column; background: var(--bg-card); overflow-y: auto;"></div>
             </div>

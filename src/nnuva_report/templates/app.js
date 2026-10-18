@@ -6,19 +6,21 @@ let actionHistory = [];
 let historyLog = [];
 let rawFiles = [];
 let searchQuery = '';
-let activeFilters = { RES: null, NQI: null, VIDEO: null, AUDIO_BASE: null, HDR: null };
+let activeFilters = { RES: null, NQI: null, CAT: null, SHOW: null, VIDEO: null, AUDIO_BASE: null, HDR: null, DEPTH: null, EXT: null };
 let currentFilteredData = [];
 let activeTrendFilters = []; 
 
-let tableLimits = { filtered: 5, transcode: 5, upgrade: 5, largest: 5, fs: 5 };
+let tableLimits = { filtered: 5, transcode: 5, upgrade: 5, series: 5, largest: 5, fs: 5 };
 let tableSort = {
     filtered:  { key: 'size_bytes', dir: 'desc' },
     transcode: { key: 'size_bytes', dir: 'desc' },
     upgrade:   { key: 'size_bytes', dir: 'desc' },
+    series:    { key: 'bytes',      dir: 'desc' },
     largest:   { key: 'size_bytes', dir: 'desc' },
 };
 
 let bResChart, bNqiChart, bResSizeChart, bCodecChart, bAudioChart, bHdrChart;
+let bCatSizeChart, bSeriesHogChart, bCatEfficiencyChart;
 let bBitrateScatterChart, bBitrateByResChart, bBitrateHistChart;
 let chartHist = null;
 let trendHoveredElement = null;
@@ -135,6 +137,113 @@ function aggData(data, key, fixedOrder = null, maxCats = 5) {
     return { labels, dataCounts, dataSizes, othersValues };
 }
 
+const NNUVA_CAT_LABELS = {
+    'tv-shows': 'TV Shows',
+    'movies': 'Movies',
+    'anime': 'Anime',
+    'drama': 'Drama',
+    'documentaries': 'Documentaries',
+    'jtv': 'J-TV',
+    'sweden-tv': 'Sweden TV',
+    'temp': 'Temp'
+};
+
+const NNUVA_CAT_COLORS = {
+    'TV Shows': '#38bdf8',
+    'Movies': '#818cf8',
+    'Anime': '#f472b6',
+    'Drama': '#2dd4bf',
+    'Documentaries': '#34d399',
+    'J-TV': '#fbbf24',
+    'Sweden TV': '#a855f7',
+    'Temp': '#64748b'
+};
+
+function getCatColor(cat) {
+    return NNUVA_CAT_COLORS[cat] || stringToColor(cat);
+}
+
+function parseDurSec(dur) {
+    if (!dur || dur === 'N/A') return 0;
+    const parts = String(dur).split(':').map(x => parseInt(x, 10));
+    if (parts.some(isNaN)) return 0;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return 0;
+}
+
+function formatRuntimeHours(sec) {
+    const hrs = (sec || 0) / 3600;
+    if (hrs >= 100) return Math.round(hrs).toLocaleString() + 'h';
+    if (hrs >= 10) return hrs.toFixed(1) + 'h';
+    if (hrs >= 1) return hrs.toFixed(1) + 'h';
+    return Math.round((sec || 0) / 60) + 'm';
+}
+
+function enrichFileMetadata(f) {
+    const d = String(f.dir || '');
+    let rel = d;
+    for (const pfx of ['/mnt/shin6/video/', '/mnt/shin5/video/']) {
+        if (rel.startsWith(pfx)) {
+            rel = rel.slice(pfx.length);
+            break;
+        }
+    }
+    const parts = rel.split('/').filter(Boolean);
+    const rawCat = (parts[0] || 'other').toLowerCase();
+    f.CAT = NNUVA_CAT_LABELS[rawCat] || (rawCat.charAt(0).toUpperCase() + rawCat.slice(1));
+
+    let show = null;
+    if (['tv-shows', 'drama', 'documentaries', 'sweden-tv', 'jtv'].includes(rawCat) && parts.length >= 2) {
+        show = parts[1].replace(/[._]/g, ' ');
+    } else if (rawCat === 'anime') {
+        if (parts.length >= 3) {
+            show = parts[2].replace(/[._]/g, ' ');
+        } else if (parts.length === 2 && !['anime-movies', 'anime-shows'].includes(parts[1])) {
+            show = parts[1].replace(/[._]/g, ' ');
+        }
+    }
+    f.SHOW = show;
+
+    const fn = String(f.file || '');
+    const dotIdx = fn.lastIndexOf('.');
+    f.EXT = dotIdx > -1 ? fn.slice(dotIdx).toLowerCase() : 'unknown';
+    f.DUR_SEC = parseDurSec(f.DUR);
+}
+
+function aggregateSeriesData(files) {
+    const map = new Map();
+    for (const f of files) {
+        if (!f.SHOW) continue;
+        let st = map.get(f.SHOW);
+        if (!st) {
+            st = { show: f.SHOW, cat: f.CAT || 'Other', count: 0, bytes: 0, dur_sec: 0, reclaim_bytes: 0, nqi_sum: 0, nqi_cnt: 0 };
+            map.set(f.SHOW, st);
+        }
+        st.count += 1;
+        st.bytes += (f.size_bytes || 0);
+        st.dur_sec += (f.DUR_SEC || 0);
+        if (['6', '7'].includes(String(f.NQI))) {
+            st.reclaim_bytes += Math.round((f.size_bytes || 0) * 0.5);
+        }
+        const nqiNum = parseInt(f.NQI, 10);
+        if (!isNaN(nqiNum)) {
+            st.nqi_sum += nqiNum;
+            st.nqi_cnt += 1;
+        }
+    }
+    const out = [];
+    for (const st of map.values()) {
+        const gb = st.bytes / (1024 ** 3);
+        const hrs = st.dur_sec / 3600;
+        st.gb = gb;
+        st.gb_hr = hrs > 0.1 ? (gb / hrs) : 0;
+        st.avg_nqi = st.nqi_cnt > 0 ? (st.nqi_sum / st.nqi_cnt) : 0;
+        out.push(st);
+    }
+    return out;
+}
+
 // ==============================================================================
 // 3. UI HANDLERS & MODALS
 // ==============================================================================
@@ -148,7 +257,7 @@ function handleModalOverlayClick(event, modalId) {
 }
 
 function assertDOM() {
-    const ids = ['nqiChart', 'resChart', 'resSizeChart', 'codecChart', 'audioChart', 'hdrChart', 'bitrateScatterChart'];
+    const ids = ['nqiChart', 'resChart', 'resSizeChart', 'catSizeChart', 'seriesHogChart', 'catEfficiencyChart', 'codecChart', 'audioChart', 'hdrChart', 'bitrateScatterChart'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (!el) throw new Error(`DOM Assertion Failed: Canvas #${id} missing`);
@@ -947,7 +1056,8 @@ function renderFilterBar() {
 
     const displayKeyMap = {
         AUDIO_BASE: 'Audio', BITRATE_RANGE: 'Bitrate', SIZE_RANGE_GB: 'Size',
-        VIDEO: 'Video', AUDIO: 'Audio', RES: 'Res', NQI: 'NQI', HDR: 'HDR'
+        VIDEO: 'Video', AUDIO: 'Audio', RES: 'Res', NQI: 'NQI', HDR: 'HDR',
+        CAT: 'Category', SHOW: 'Series', DEPTH: 'Depth', EXT: 'Container'
     };
     Object.keys(activeFilters).forEach(key => {
         if (key.startsWith('_')) return;
@@ -1032,6 +1142,12 @@ window.switchFilterTab = function(cat) {
     } else if (cat === 'RES') {
         const resOrder = ['4K', '1080p', '720p', '480p'];
         uniqueVals.sort((a,b) => resOrder.indexOf(a) - resOrder.indexOf(b));
+    } else if (cat === 'CAT') {
+        const catOrder = ['TV Shows', 'Movies', 'Anime', 'Drama', 'Documentaries', 'J-TV', 'Sweden TV', 'Temp'];
+        uniqueVals.sort((a,b) => {
+            const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        });
     } else {
         uniqueVals.sort();
     }
@@ -1042,7 +1158,9 @@ window.switchFilterTab = function(cat) {
     }
     
     const catMap = {
-        'RES': 'Resolution', 'NQI': 'Quality Score', 'VIDEO': 'Video Codec', 'AUDIO_BASE': 'Audio Format', 'HDR': 'Color / HDR'
+        'RES': 'Resolution', 'NQI': 'Quality Score', 'CAT': 'Library Category',
+        'VIDEO': 'Video Codec', 'AUDIO_BASE': 'Audio Format', 'HDR': 'Color / HDR',
+        'DEPTH': 'Bit Depth', 'EXT': 'Container Format'
     };
     const headerText = catMap[cat] || cat;
     
@@ -1733,6 +1851,74 @@ function _updateSortIndicators(tableKey) {
     });
 }
 
+window.toggleSeriesSort = function(sortKey) {
+    const cur = tableSort.series || { key: 'bytes', dir: 'desc' };
+    if (cur.key === sortKey) {
+        cur.dir = cur.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        cur.key = sortKey;
+        cur.dir = (sortKey === 'show' || sortKey === 'cat') ? 'asc' : 'desc';
+    }
+    tableSort.series = cur;
+    _updateSortIndicators('series');
+    runFilterPipeline();
+};
+
+function populateSeriesTable(data, limit) {
+    const tbody = document.getElementById('table-series');
+    if (!tbody) return;
+    const seriesList = aggregateSeriesData(data);
+    const cfg = tableSort.series || { key: 'bytes', dir: 'desc' };
+    const mult = cfg.dir === 'asc' ? 1 : -1;
+    const isStr = (cfg.key === 'show' || cfg.key === 'cat');
+
+    seriesList.sort((a, b) => {
+        if (isStr) {
+            const av = String(a[cfg.key] || '').toLowerCase();
+            const bv = String(b[cfg.key] || '').toLowerCase();
+            return av < bv ? -1 * mult : (av > bv ? 1 * mult : 0);
+        }
+        return ((a[cfg.key] || 0) - (b[cfg.key] || 0)) * mult;
+    });
+
+    const slice = seriesList.slice(0, limit);
+    if (!slice.length) {
+        tbody.innerHTML = `<tr><td colspan="8">No multi-episode series found.</td></tr>`;
+    } else {
+        let html = '';
+        slice.forEach((st, i) => {
+            if (i > 0 && i % 5 === 0 && i !== slice.length) {
+                html += `<tr class="row-separator"><td colspan="8"></td></tr>`;
+            }
+            const safeShow = String(st.show).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const nqiRound = st.avg_nqi > 0 ? Math.round(st.avg_nqi) : 'N/A';
+            const nqiDisplay = st.avg_nqi > 0 ? st.avg_nqi.toFixed(1) : 'N/A';
+            const reclaimStr = st.reclaim_bytes > 0
+                ? `<span style="color:#d946ef;font-weight:600;">${formatGb(st.reclaim_bytes)}</span>`
+                : `<span style="color:var(--text-muted);">—</span>`;
+            const catColor = getCatColor(st.cat);
+            html += `<tr class="clickable-row" onclick="applyManualFilter('SHOW', '${safeShow}', '${safeShow}')" title="Click to filter all ${st.count} files in ${safeShow}">
+                <td style="font-weight:600;color:var(--text-main);">${st.show}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:999px;background:${catColor};"></span>${st.cat}</span></td>
+                <td>${st.count.toLocaleString()}</td>
+                <td>${formatRuntimeHours(st.dur_sec)}</td>
+                <td>${st.gb_hr.toFixed(2)} GB/h</td>
+                <td><span class="badge" style="background-color: ${getNqiColor(nqiRound)}; color: ${getNqiTextColor(nqiRound)}; border-radius: 999px; padding: 4px 12px; font-weight: bold; font-size: 0.75rem;">${nqiDisplay}</span></td>
+                <td>${reclaimStr}</td>
+                <td class="text-right" style="font-weight:600;">${formatGb(st.bytes)}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    const fText = document.getElementById('footer-text-series');
+    if (fText) fText.innerText = `Showing ${slice.length} of ${seriesList.length} series`;
+    const moreBtn = document.getElementById('more-btn-series');
+    const lessBtn = document.getElementById('less-btn-series');
+    if (moreBtn) moreBtn.style.display = slice.length < seriesList.length ? 'inline-block' : 'none';
+    if (lessBtn) lessBtn.style.display = limit > 5 ? 'inline-block' : 'none';
+}
+
 function updateTables(data) {
     const hasFilters = searchQuery.trim() !== '' || Object.keys(activeFilters).some(k => !k.startsWith('_') && activeFilters[k] !== null);
     const filteredContainer = document.getElementById('filteredViewContainer');
@@ -1755,10 +1941,13 @@ function updateTables(data) {
         const upgRaw = data.filter(f => ['1','2'].includes(String(f.NQI)));
         populateTable('upgrade',   _applyTableSort(upgRaw, 'upgrade'),   tableLimits.upgrade,   "No upgrade targets found.");
 
+        populateSeriesTable(data, tableLimits.series);
+
         populateTable('largest',   _applyTableSort(data, 'largest'),    tableLimits.largest,   "No files found.");
 
         _updateSortIndicators('transcode');
         _updateSortIndicators('upgrade');
+        _updateSortIndicators('series');
         _updateSortIndicators('largest');
     }
 
@@ -1785,6 +1974,23 @@ function runFilterPipeline() {
                 if (String(f.NQI) !== String(activeFilters.NQI)) return false;
             }
         }
+
+        if (activeFilters.CAT && activeFilters.CAT.length > 0) {
+            if (Array.isArray(activeFilters.CAT)) {
+                if (!activeFilters.CAT.includes(String(f.CAT))) return false;
+            } else {
+                if (String(f.CAT) !== String(activeFilters.CAT)) return false;
+            }
+        }
+
+        if (activeFilters.SHOW && activeFilters.SHOW.length > 0) {
+            if (!f.SHOW) return false;
+            if (Array.isArray(activeFilters.SHOW)) {
+                if (!activeFilters.SHOW.includes(String(f.SHOW))) return false;
+            } else {
+                if (String(f.SHOW) !== String(activeFilters.SHOW)) return false;
+            }
+        }
         
         if (activeFilters.VIDEO && activeFilters.VIDEO.length > 0) {
             if (Array.isArray(activeFilters.VIDEO)) {
@@ -1807,6 +2013,22 @@ function runFilterPipeline() {
                 if (!activeFilters.HDR.includes(f.HDR)) return false;
             } else {
                 if (f.HDR !== activeFilters.HDR) return false;
+            }
+        }
+
+        if (activeFilters.DEPTH && activeFilters.DEPTH.length > 0) {
+            if (Array.isArray(activeFilters.DEPTH)) {
+                if (!activeFilters.DEPTH.includes(String(f.DEPTH))) return false;
+            } else {
+                if (String(f.DEPTH) !== String(activeFilters.DEPTH)) return false;
+            }
+        }
+
+        if (activeFilters.EXT && activeFilters.EXT.length > 0) {
+            if (Array.isArray(activeFilters.EXT)) {
+                if (!activeFilters.EXT.includes(String(f.EXT))) return false;
+            } else {
+                if (String(f.EXT) !== String(activeFilters.EXT)) return false;
             }
         }
 
@@ -1840,6 +2062,7 @@ function runFilterPipeline() {
     tableLimits.filtered = 5;
     tableLimits.transcode = 5;
     tableLimits.upgrade = 5;
+    tableLimits.series = 5;
     tableLimits.largest = 5;
     tableLimits.fs = 5;
     
@@ -1847,6 +2070,8 @@ function runFilterPipeline() {
 
     let tFiles = currentData.length;
     let tBytes = currentData.reduce((sum, f) => sum + f.size_bytes, 0);
+    let tDurSec = currentData.reduce((sum, f) => sum + (f.DUR_SEC || 0), 0);
+    let tHrsStr = formatRuntimeHours(tDurSec);
     let cOpt = currentData.filter(f => ['4','5'].includes(String(f.NQI))).length;
     let cTrn = currentData.filter(f => ['6','7'].includes(String(f.NQI))).length;
     let cUpg = currentData.filter(f => ['1','2'].includes(String(f.NQI))).length;
@@ -1893,9 +2118,9 @@ function runFilterPipeline() {
                 const arrow = diff > 0 ? '▲' : '▼';
                 const color = diff > 0 ? '#34d399' : '#f87171';
                 const sign = diff > 0 ? '+' : '−';
-                trendStr = `<span style="color:${color};font-weight:bold;">${arrow} ${sign}${Math.abs(diff).toLocaleString()}</span> <span style="opacity:0.7;">(${sign}${Math.abs(pct).toFixed(1)}%) over 90d</span>`;
+                trendStr = `<span style="color:${color};font-weight:bold;">${arrow} ${sign}${Math.abs(diff).toLocaleString()}</span> <span style="opacity:0.7;">(${sign}${Math.abs(pct).toFixed(1)}%) · ${tHrsStr}</span>`;
             } else {
-                trendStr = `<span style="opacity:0.7;">Stable over 90d</span>`;
+                trendStr = `<span style="opacity:0.7;">${tHrsStr} total runtime</span>`;
             }
         }
 
@@ -1907,14 +2132,14 @@ function runFilterPipeline() {
                 const gbStr   = d.added_gb > 0 ? `<span style="color:#34d399;font-weight:bold;"> +${d.added_gb} GB</span>` : '';
                 const rgbStr  = d.removed_gb > 0 ? `<span style="color:#f87171;font-weight:bold;"> −${d.removed_gb} GB</span>` : '';
                 const since   = latestDelta.date;
-                if(kpiMetaFiles) kpiMetaFiles.innerHTML = `since ${since}: ${[addStr, remStr].filter(Boolean).join(' / ')}`;
+                if(kpiMetaFiles) kpiMetaFiles.innerHTML = `${tHrsStr} · since ${since}: ${[addStr, remStr].filter(Boolean).join(' / ')}`;
                 const kpiMetaStorageDelta = document.getElementById('kpi-meta-storage');
                 if(kpiMetaStorageDelta) kpiMetaStorageDelta.innerHTML = `<span style="opacity:0.7;">Avg: ${avgSizeStr}</span>${[gbStr, rgbStr].filter(Boolean).join('')}`;
             } else {
-                if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || '<span style="opacity:0.7;">No recent activity</span>';
+                if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || `<span style="opacity:0.7;">${tHrsStr} runtime</span>`;
             }
         } else {
-            if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || '<span style="opacity:0.7;">No history yet</span>';
+            if(kpiMetaFiles) kpiMetaFiles.innerHTML = trendStr || `<span style="opacity:0.7;">${tHrsStr} runtime</span>`;
         }
         
         updateKPI('storage', formatGb(tBytes), '');
@@ -1942,6 +2167,7 @@ function runFilterPipeline() {
 
     if (typeof Chart !== 'undefined') {
         try { updateBottomCharts(currentData); } catch(e) { console.error(e); }
+        try { updateStorageCharts(currentData); } catch(e) { console.error(e); }
         try { updateBitrateCharts(currentData); } catch(e) { console.error(e); }
     }
     updateTables(currentData);
@@ -2355,6 +2581,32 @@ function describeBottomChartHover(chart, datasetIndex, index) {
             details: `<strong>${val}</strong> ${muted('GB')}`
         };
     }
+    if (id === 'catSizeChart') {
+        const meta = chart.__catMeta?.[label];
+        const extra = meta ? ` · ${meta.count.toLocaleString()} files · ${formatRuntimeHours(meta.dur_sec)}` : '';
+        return {
+            pill: { label: label, bg: getCatColor(label) },
+            details: `<strong>${Number(val).toLocaleString()}</strong> ${muted('GB' + extra)}`
+        };
+    }
+    if (id === 'seriesHogChart') {
+        const st = chart.__seriesMeta?.[label];
+        const extra = st
+            ? ` · ${st.count} files · ${formatRuntimeHours(st.dur_sec)}${st.reclaim_bytes > 0 ? ' · ' + formatGb(st.reclaim_bytes) + ' reclaimable' : ''}`
+            : '';
+        return {
+            pill: { label: label, bg: st ? getCatColor(st.cat) : '#38bdf8' },
+            details: `<strong>${Number(val).toLocaleString()}</strong> ${muted('GB' + extra)}`
+        };
+    }
+    if (id === 'catEfficiencyChart') {
+        const meta = chart.__effMeta?.[label];
+        const extra = meta ? ` · ${formatRuntimeHours(meta.dur_sec)} total (${Math.round(meta.gb).toLocaleString()} GB)` : '';
+        return {
+            pill: { label: label, bg: getCatColor(label) },
+            details: `<strong>${val}</strong> ${muted('GB/hr' + extra)}`
+        };
+    }
     if (id === 'codecChart' || id === 'audioChart' || id === 'hdrChart') {
         const bgArr = ds.backgroundColor;
         const bg = Array.isArray(bgArr) ? bgArr[index] : bgArr;
@@ -2723,6 +2975,67 @@ function updateBitrateCharts(data) {
     bBitrateHistChart.update();
 }
 
+function updateStorageCharts(data) {
+    if (!bCatSizeChart || !bSeriesHogChart || !bCatEfficiencyChart) return;
+
+    const catMap = new Map();
+    for (const f of data) {
+        const cat = f.CAT || 'Other';
+        let st = catMap.get(cat);
+        if (!st) {
+            st = { cat, count: 0, bytes: 0, dur_sec: 0 };
+            catMap.set(cat, st);
+        }
+        st.count += 1;
+        st.bytes += (f.size_bytes || 0);
+        st.dur_sec += (f.DUR_SEC || 0);
+    }
+
+    const catEntries = [...catMap.values()]
+        .filter(c => c.bytes > 0)
+        .sort((a, b) => b.bytes - a.bytes);
+
+    const catLabels = catEntries.map(c => c.cat);
+    const catSizesGb = catEntries.map(c => parseFloat((c.bytes / (1024 ** 3)).toFixed(1)));
+    const catMetaObj = {};
+    catEntries.forEach(c => {
+        c.gb = c.bytes / (1024 ** 3);
+        c.gb_hr = c.dur_sec > 360 ? (c.gb / (c.dur_sec / 3600)) : 0;
+        catMetaObj[c.cat] = c;
+    });
+
+    bCatSizeChart.data.labels = catLabels;
+    bCatSizeChart.data.datasets[0].data = catSizesGb;
+    bCatSizeChart.data.datasets[0].backgroundColor = catLabels.map(getCatColor);
+    bCatSizeChart.__catMeta = catMetaObj;
+    bCatSizeChart.update();
+
+    const seriesAll = aggregateSeriesData(data).sort((a, b) => b.bytes - a.bytes);
+    const topSeries = seriesAll.slice(0, 10);
+    const seriesLabels = topSeries.map(s => s.show);
+    const seriesSizesGb = topSeries.map(s => parseFloat((s.bytes / (1024 ** 3)).toFixed(1)));
+    const seriesMetaObj = {};
+    topSeries.forEach(s => { seriesMetaObj[s.show] = s; });
+
+    bSeriesHogChart.data.labels = seriesLabels;
+    bSeriesHogChart.data.datasets[0].data = seriesSizesGb;
+    bSeriesHogChart.data.datasets[0].backgroundColor = topSeries.map(s => getCatColor(s.cat));
+    bSeriesHogChart.__seriesMeta = seriesMetaObj;
+    bSeriesHogChart.update();
+
+    const effEntries = catEntries
+        .filter(c => c.dur_sec >= 1800 && c.cat !== 'Temp' && c.cat !== 'Mnt')
+        .sort((a, b) => b.gb_hr - a.gb_hr);
+    const effLabels = effEntries.map(c => c.cat);
+    const effVals = effEntries.map(c => parseFloat(c.gb_hr.toFixed(2)));
+
+    bCatEfficiencyChart.data.labels = effLabels;
+    bCatEfficiencyChart.data.datasets[0].data = effVals;
+    bCatEfficiencyChart.data.datasets[0].backgroundColor = effLabels.map(getCatColor);
+    bCatEfficiencyChart.__effMeta = catMetaObj;
+    bCatEfficiencyChart.update();
+}
+
 function updateBottomCharts(data) {
     if (!bResChart || !bResSizeChart || !bNqiChart || !bCodecChart || !bAudioChart || !bHdrChart) return;
 
@@ -2902,6 +3215,55 @@ function initBottomCharts() {
                     plugins: { tooltip: tooltipOff, title: { display: false }, subtitle: { display: false }, legend: {display: false} }, 
                     scales: { y: { beginAtZero: true } }, 
                     onClick: buildClickHandler('RES'),
+                    onHover: bottomChartHover
+                }
+            });
+        }
+    } catch(e) { console.error(e); }
+
+    try {
+        const ctxCatSize = document.getElementById('catSizeChart');
+        if(ctxCatSize) {
+            bCatSizeChart = new Chart(ctxCatSize, {
+                type: 'bar', data: { labels: [], datasets: [{ label: 'Storage (GB)', data: [], backgroundColor: NNUVA_PALETTE, borderRadius: 4 }] },
+                options: {
+                    maintainAspectRatio: false, responsive: true, layout: chartPadding,
+                    plugins: { tooltip: tooltipOff, title: { display: false }, subtitle: { display: false }, legend: {display: false} },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString() + ' GB' } } },
+                    onClick: buildClickHandler('CAT'),
+                    onHover: bottomChartHover
+                }
+            });
+        }
+    } catch(e) { console.error(e); }
+
+    try {
+        const ctxSeriesHog = document.getElementById('seriesHogChart');
+        if(ctxSeriesHog) {
+            bSeriesHogChart = new Chart(ctxSeriesHog, {
+                type: 'bar', data: { labels: [], datasets: [{ label: 'Total GB', data: [], backgroundColor: NNUVA_PALETTE, borderRadius: 4 }] },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false, responsive: true, layout: chartPadding,
+                    plugins: { tooltip: tooltipOff, title: { display: false }, subtitle: { display: false }, legend: {display: false} },
+                    scales: { x: { beginAtZero: true, ticks: { callback: v => v + ' GB' } } },
+                    onClick: buildClickHandler('SHOW'),
+                    onHover: bottomChartHover
+                }
+            });
+        }
+    } catch(e) { console.error(e); }
+
+    try {
+        const ctxCatEff = document.getElementById('catEfficiencyChart');
+        if(ctxCatEff) {
+            bCatEfficiencyChart = new Chart(ctxCatEff, {
+                type: 'bar', data: { labels: [], datasets: [{ label: 'GB / Hour', data: [], backgroundColor: NNUVA_PALETTE, borderRadius: 4 }] },
+                options: {
+                    maintainAspectRatio: false, responsive: true, layout: chartPadding,
+                    plugins: { tooltip: tooltipOff, title: { display: false }, subtitle: { display: false }, legend: {display: false} },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' GB/h' } } },
+                    onClick: buildClickHandler('CAT'),
                     onHover: bottomChartHover
                 }
             });
@@ -3456,7 +3818,7 @@ function applyTheme() {
     try {
         if (typeof Chart !== 'undefined') {
             Chart.defaults.color = textMuted;
-            const chartsToUpdate = [chartHist, bResChart, bNqiChart, bResSizeChart, bCodecChart, bAudioChart, bHdrChart, bBitrateScatterChart, bBitrateByResChart, bBitrateHistChart, window.modalChartInstance];
+            const chartsToUpdate = [chartHist, bResChart, bNqiChart, bResSizeChart, bCatSizeChart, bSeriesHogChart, bCatEfficiencyChart, bCodecChart, bAudioChart, bHdrChart, bBitrateScatterChart, bBitrateByResChart, bBitrateHistChart, window.modalChartInstance];
             chartsToUpdate.forEach(c => {
                 if (!c) return;
                 if (c.options.scales) {
@@ -3522,7 +3884,10 @@ async function bootDashboard() {
         if (fileStr) rawFiles = await decompressGzipBase64(fileStr);
         
         if (Array.isArray(rawFiles) && rawFiles.length > 0) {
-            rawFiles.forEach((f, i) => f.id = i);
+            rawFiles.forEach((f, i) => {
+                f.id = i;
+                enrichFileMetadata(f);
+            });
             currentFilteredData = rawFiles; 
         }
     } catch (e) {
