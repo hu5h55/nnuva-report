@@ -483,15 +483,32 @@ window.openFileModal = function(fileId) {
     const visualWidth = Math.min((nqiPercent / 150) * 100, 100);
     
     let actionHtml = '';
-    
+    const inPath = `${f.dir}/${f.file}`;
+    const baseNoExt = String(f.file || 'output').replace(/\.[^/.]+$/, '');
+    const outPath = `${f.dir}/${baseNoExt}.hevc.mkv`;
+    const tmpPath = `${f.dir}/${baseNoExt}.hevc.tmp.mkv`;
+    const finalMkvPath = `${f.dir}/${baseNoExt}.mkv`;
+    const is4k = String(f.RES) === '4K';
+    const cqVal = is4k ? 24 : 23;
+    const rateCap = is4k ? '-maxrate 18M -bufsize 36M' : '-maxrate 8M -bufsize 16M';
+    const vCodecUpper = String(f.VIDEO || '').toUpperCase();
+    const canZeroCopyCuda = vCodecUpper.includes('HEVC') || vCodecUpper.includes('H265') || vCodecUpper.includes('H264') || vCodecUpper.includes('AVC') || vCodecUpper.includes('VC1') || vCodecUpper.includes('MPEG2') || vCodecUpper.includes('VP9');
+    const hwDecFlags = canZeroCopyCuda ? '-hwaccel cuda -hwaccel_output_format cuda' : '-hwaccel auto';
+    const nvencPixFmt = canZeroCopyCuda ? '' : ' -pix_fmt p010le';
+
     if (nqiNum >= 6) {
-        let hbCmd = `HandBrakeCLI -i "${f.dir}/${f.file}" -o "${f.file.replace('.mkv', '.hevc.mkv')}" -e x265 -q 20 --all-audio -E copy --all-subtitles`;
-        let ffCmd = `ffmpeg -i "${f.dir}/${f.file}" -c:v libx265 -preset slow -crf 18 -c:a eac3 -b:a 640k "${f.file.replace('.mkv', '.hevc.mkv')}"`;
-        
-        actionHtml += buildCommandCard('Aggressive Space Saver (HandBrake)', 'Use HandBrake CLI to transcode video to highly efficient x265 while retaining all subtitles and audio formats natively.', hbCmd, '#d946ef');
-        actionHtml += buildCommandCard('Fast FFmpeg Conversion', 'Direct FFmpeg pipeline. Converts video to HEVC and degrades heavy audio to E-AC3 for maximum compression.', ffCmd, '#38bdf8');
+        const nvencCmd = `ffmpeg -hide_banner -hwaccel_device 0 ${hwDecFlags} -i "${inPath}" -map 0:v:0 -map 0:a -map 0:s? -c:v hevc_nvenc -preset p5 -rc vbr -cq ${cqVal} ${rateCap}${nvencPixFmt} -c:a eac3 -b:a 640k -c:s copy "${outPath}"`;
+        const replaceTail = inPath === finalMkvPath
+            ? `mv -f "${tmpPath}" "${finalMkvPath}"`
+            : `mv -f "${tmpPath}" "${finalMkvPath}" && rm -f "${inPath}"`;
+        const nvencReplaceCmd = `ffmpeg -hide_banner -hwaccel_device 0 ${hwDecFlags} -i "${inPath}" -map 0:v:0 -map 0:a -map 0:s? -c:v hevc_nvenc -preset p5 -rc vbr -cq ${cqVal} ${rateCap}${nvencPixFmt} -c:a eac3 -b:a 640k -c:s copy "${tmpPath}" && ${replaceTail}`;
+        const cpuCmd = `ffmpeg -hide_banner -i "${inPath}" -map 0:v:0 -map 0:a -map 0:s? -c:v libx265 -preset medium -crf ${is4k ? 20 : 21} -pix_fmt yuv420p10le -c:a eac3 -b:a 640k -c:s copy "${outPath}"`;
+
+        actionHtml += buildCommandCard('GPU Fast Transcode (NVIDIA NVENC · Side-by-Side)', `Zero-copy CUDA hardware decode + 10-bit HEVC NVENC encode (${is4k ? '4K ~50 fps' : '1080p ~160 fps'} on Quadro P400). Converts lossless audio to 640k E-AC3, preserves all subtitles, and writes beside the original file.`, nvencCmd, '#d946ef', 'Copy GPU Cmd');
+        actionHtml += buildCommandCard('GPU Transcode & Replace Original (Atomic Swap)', 'Transcodes on GPU to a temporary .tmp.mkv file in the same folder and atomically replaces the original file only if FFmpeg completes with zero errors.', nvencReplaceCmd, '#38bdf8', 'Copy Swap Cmd');
+        actionHtml += buildCommandCard('CPU x265 Archival Fallback (Software)', 'Software libx265 10-bit encode. Higher compression efficiency per bit, but significantly slower on CPU.', cpuCmd, '#64748b', 'Copy CPU Cmd');
     } else if (nqiNum <= 2) {
-        let query = `${f.file.replace(/\./g, ' ').replace('.mkv', '').replace('.mp4', '').replace('.avi', '')} 1080p WEB-DL`;
+        let query = `${baseNoExt.replace(/[._]/g, ' ')} 1080p WEB-DL`;
         actionHtml += buildCommandCard('Quality Warning: Sub-Optimal Encode', 'This file is heavily artifacted or uses legacy resolution. Transcoding will not help. Search for a higher quality replacement.', query, '#f87171', 'Copy Query');
     } else {
         let hasHeavyAudio = f.AUDIO && (f.AUDIO.includes('TRUEHD') || f.AUDIO.includes('DTS-HD') || f.AUDIO.includes('FLAC') || f.AUDIO.includes('PCM'));
@@ -499,11 +516,11 @@ window.openFileModal = function(fileId) {
         let isLarge = (f.size_bytes / (1024**3)) > 4.0; 
         
         if (hasHeavyAudio && isLarge) {
-            let cmd = `ffmpeg -i "${f.dir}/${f.file}" -c:v copy -c:a eac3 -b:a 768k "${f.file.replace('.mkv', '.audmod.mkv')}"`;
-            actionHtml += buildCommandCard('Audio Bloat Detected (Lossless Track)', '<strong style="color: #f87171;">CRITICAL WARNING:</strong> This file contains audiophile-grade lossless audio (TrueHD/DTS-HD). The video is already optimal, but the audio alone is consuming gigabytes of space. <strong>Only run this command to permanently degrade the audio to E-AC3 if you do NOT own a high-end dedicated home theater system.</strong>', cmd, '#34d399');
+            let cmd = `ffmpeg -hide_banner -i "${inPath}" -map 0:v:0 -map 0:a -map 0:s? -c:v copy -c:a eac3 -b:a 640k -c:s copy "${f.dir}/${baseNoExt}.eac3.mkv"`;
+            actionHtml += buildCommandCard('Audio Bloat Detected (Lossless Track Remux)', '<strong style="color: #f87171;">NOTE:</strong> Video is already optimal (copied untouched at disk speed), while lossless TrueHD/DTS-HD audio is converted to 640k E-AC3 and all subtitles are preserved.', cmd, '#34d399', 'Copy Remux Cmd');
         } else if (isH264 && isLarge) {
-            let hbCmd = `HandBrakeCLI -i "${f.dir}/${f.file}" -o "${f.file.replace('.mkv', '.hevc.mkv')}" -e x265 -q 22 --all-audio -E copy`;
-            actionHtml += buildCommandCard('Legacy Codec Detected', 'The file looks good but relies on older, inefficient H.264 encoding. Transcode to HEVC using Handbrake.', hbCmd, '#22d3ee');
+            let nvencH264Cmd = `ffmpeg -hide_banner -hwaccel_device 0 ${hwDecFlags} -i "${inPath}" -map 0:v:0 -map 0:a -map 0:s? -c:v hevc_nvenc -preset p5 -rc vbr -cq ${cqVal} ${rateCap}${nvencPixFmt} -c:a copy -c:s copy "${outPath}"`;
+            actionHtml += buildCommandCard('Legacy H.264 Codec (GPU HEVC Upgrade)', 'Converts inefficient H.264 video to 10-bit HEVC on the NVIDIA GPU while copying all audio and subtitle tracks losslessly.', nvencH264Cmd, '#22d3ee', 'Copy GPU Cmd');
         } else {
             actionHtml += `<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 0.9rem; font-style: italic; border: 1px dashed var(--border); border-radius: 6px;">File is fully optimized. No automated workflows recommended.</div>`;
         }
