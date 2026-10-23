@@ -1,9 +1,10 @@
 # src/nnuva_report/__init__.py
 
 APP_NAME = "nnuva-report"
-VERSION = "5.8.0"
+VERSION = "5.8.1"
 
 CHANGELOG_LINES = [
+    "v5.8.1 (2026-10-23) - UI/UX: Added floating theme dock & quick baseline reset button, updated AI-Generated badges with GitHub links, and restored standard CLI help & version flags.",
     "v5.8.0 (2026-10-18) - FEAT: Added 'Storage Footprint & Folder Hogs' 3-tile row (Storage by Category, Top Series & Collection Hogs, Storage Efficiency GB/Hour), a sortable 'Folder Hogs: Top Largest Series & Collections' leaderboard table, total playback runtime telemetry, and Category / Bit Depth / Container filters.",
     "v5.7.0 (2026-10-18) - FEAT: Added 3-mode Theme Engine (Light / Dark / OLED, defaulting to OLED pitch-black #000000) with 1-click header cycle toggle, segmented menu controls, rim-bordered cards, and live Chart.js canvas re-theming.",
     "v5.6.9 (2026-05-13) - UX: Duration radar axis now uses the 75th-percentile of library durations instead of the absolute max. Outlier multi-hour recordings (concerts, batched TV files) no longer crush typical movie scores — a 90-minute film now scores 100% in a TV-heavy library, where it previously scored ~20%.",

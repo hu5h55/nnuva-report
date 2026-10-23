@@ -1114,7 +1114,7 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
+            padding: 2px 9px;
             border-radius: 999px;
             font-size: 0.68rem;
             font-weight: 600;
@@ -1122,7 +1122,71 @@
             color: var(--primary);
             background: rgba(56, 189, 248, 0.08);
             border: 1px solid rgba(56, 189, 248, 0.28);
-            user-select: none;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+        }
+        .page-footer-ai-tag:hover {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+        .page-footer-brand-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            padding: 2px 6px;
+            margin-left: -6px;
+            border-radius: 6px;
+            color: inherit;
+            font: inherit;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+        .page-footer-brand-btn:hover {
+            color: var(--primary);
+            background: rgba(56, 189, 248, 0.08);
+        }
+        .floating-theme-dock {
+            position: fixed;
+            right: 18px;
+            bottom: 14px;
+            z-index: 9500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 999px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(12px);
+        }
+        .floating-theme-dock .menu-segment-btn {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .floating-baseline-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+        .floating-baseline-btn:hover {
+            color: var(--primary);
+            background: rgba(56, 189, 248, 0.12);
         }
 
         /* (i) info modals (guide, changelog) must stack above ALL other modals — including the file modal */
@@ -1549,46 +1613,14 @@
 </head>
 <body>
 
-    <!-- TOP GAVEL: ⬢ hex menu (left) | search (center) | library link (right) -->
+    <!-- TOP GAVEL: ⬢ baseline reset (left) | search (center) | menu (right) -->
     <div class="top-gavel" id="topGavel">
-        <!-- LEFT: hex menu + add-filter -->
+        <!-- LEFT: brand button -> reset to baseline -->
         <div class="gavel-cluster left" style="position:relative;">
-            <button id="hexBtn" class="gavel-brand" onclick="toggleHexMenu(event)" title="Menu" aria-label="NNUVA menu">
+            <button id="hexBtn" class="gavel-brand" onclick="resetToBaseline(event)" title="Reset to baseline (clear filters &amp; scroll to top)" aria-label="Reset to baseline">
                 <span class="gavel-brand-glyph">⬢</span>
                 <span>NNUVA</span>
             </button>
-            <div class="settings-menu" id="hexMenu" style="left:0;right:auto;top:42px;bottom:auto;transform-origin:top left; position: absolute;">
-                <div class="menu-label">Quick Actions</div>
-                <div class="menu-item" onclick="openFilterModal(); document.getElementById('hexMenu').classList.remove('show');">
-                    <span>Add Filter</span>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </div>
-                <div class="menu-item" id="qaExportBtn">
-                    <span>Download CSV</span>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                </div>
-                <div class="menu-item" id="qaClearBtn" onclick="clearAllFilters(event)">
-                    <span>Clear All Filters</span>
-                </div>
-                <div class="menu-item" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-                    <span>Scroll to Top</span>
-                </div>
-                <div class="menu-divider"></div>
-                <div class="menu-label">Appearance</div>
-                <div class="menu-item" style="padding: 8px 16px; cursor: default;">
-                    <div class="menu-segment" style="width: 100%;">
-                        <button class="menu-segment-btn" data-theme-opt="light" onclick="setTheme('light')">Light</button>
-                        <button class="menu-segment-btn" data-theme-opt="dark" onclick="setTheme('dark')">Dark</button>
-                        <button class="menu-segment-btn" data-theme-opt="oled" onclick="setTheme('oled')">OLED</button>
-                    </div>
-                </div>
-                <div class="menu-divider"></div>
-                <div class="menu-label">Documentation</div>
-                <div class="menu-item" id="menuGuideBtn" onclick="openGuideModal(); document.getElementById('hexMenu').classList.remove('show');">
-                    <span>Documentation</span>
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="var(--text-muted)" fill="none" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                </div>
-            </div>
         </div>
 
         <!-- CENTER: search bar -->
@@ -1607,23 +1639,29 @@
             </div>
         </div>
 
-        <!-- RIGHT: theme toggle + meatball menu — version, db info, jump to System Health -->
+        <!-- RIGHT: meatball menu — quick actions, version, db info, docs & changelog -->
         <div class="gavel-cluster right meatball-wrap">
-            <button id="topThemeBtn" class="gavel-icon-btn theme-cycle-btn" onclick="cycleTheme()" title="Switch theme (Light / Dark / OLED)" aria-label="Switch theme">
-                <span class="theme-cycle-icon">⬢</span>
-            </button>
-            <button id="meatballBtn" class="gavel-icon-btn" onclick="toggleMeatballMenu(event)" title="System info" aria-label="System info">
+            <button id="meatballBtn" class="gavel-icon-btn" onclick="toggleMeatballMenu(event)" title="Menu &amp; System Info" aria-label="Menu &amp; System Info">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="19" r="1.8"></circle></svg>
             </button>
             <div class="meatball-menu" id="meatballMenu">
-                <div class="mb-section-label">Theme</div>
-                <div style="padding: 4px 16px 6px;">
-                    <div class="menu-segment" style="width: 100%;">
-                        <button class="menu-segment-btn" data-theme-opt="light" onclick="setTheme('light')">Light</button>
-                        <button class="menu-segment-btn" data-theme-opt="dark" onclick="setTheme('dark')">Dark</button>
-                        <button class="menu-segment-btn" data-theme-opt="oled" onclick="setTheme('oled')">OLED</button>
-                    </div>
-                </div>
+                <div class="mb-section-label">Quick Actions</div>
+                <button class="mb-action" onclick="resetToBaseline(event)">
+                    <span style="color:var(--primary);font-size:0.9rem;line-height:1;">⬢</span>
+                    <span>Reset to Baseline</span>
+                </button>
+                <button class="mb-action" onclick="openFilterModal(); document.getElementById('meatballMenu').classList.remove('show');">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Add Filter</span>
+                </button>
+                <button class="mb-action" id="qaExportBtn">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>Download CSV</span>
+                </button>
+                <button class="mb-action" id="qaClearBtn" onclick="clearAllFilters(event)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <span>Clear All Filters</span>
+                </button>
                 <div class="mb-divider"></div>
                 <div class="mb-section-label">Version</div>
                 <div class="mb-row"><span class="mb-key">Report</span><span class="mb-val">v__VERSION__</span></div>
@@ -1638,6 +1676,10 @@
                 <div class="mb-row"><span class="mb-key">Size</span><span class="mb-val">__HIST_SIZE_KB__ KB</span></div>
                 <div class="mb-row"><span class="mb-key">Last update</span><span class="mb-val">__HIST_MTIME__</span></div>
                 <div class="mb-divider"></div>
+                <button class="mb-action" id="menuGuideBtn" onclick="openGuideModal('intro'); document.getElementById('meatballMenu').classList.remove('show');">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                    <span>Documentation &amp; Guides</span>
+                </button>
                 <button class="mb-action" onclick="jumpToSystemHealth()">
                     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
                     <span>Open System &amp; Database Health</span>
@@ -1739,7 +1781,7 @@
 
         <div class="header-section" style="margin-bottom: 30px;">
             <div class="hero-bar">
-                <button id="heroTitle" class="hero-title-btn" onclick="toggleHexMenu(event)" title="Menu" aria-label="Open menu">
+                <button id="heroTitle" class="hero-title-btn" onclick="resetToBaseline(event)" title="Reset to baseline (clear filters &amp; scroll to top)" aria-label="Reset to baseline">
                     <h1 style="margin: 0;">
                         <span style="color: var(--brand-text); font-weight: bold;">⬢ NNUVA</span>
                         <span style="color: var(--primary); font-weight: normal;">Library Dashboard</span>
@@ -1754,10 +1796,7 @@
                         <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
-                <button id="heroThemeBtn" class="hero-icon-btn theme-cycle-btn" onclick="cycleTheme()" title="Switch theme (Light / Dark / OLED)" aria-label="Switch theme" style="margin-left: 0;">
-                    <span class="theme-cycle-icon">⬢</span>
-                </button>
-                <button id="heroKebabBtn" class="hero-icon-btn" onclick="toggleMeatballMenu(event)" title="System info" aria-label="System info" style="margin-left: 0;">
+                <button id="heroKebabBtn" class="hero-icon-btn" onclick="toggleMeatballMenu(event)" title="Menu &amp; System Info" aria-label="Menu &amp; System Info" style="margin-left: 0;">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="19" r="1.8"></circle></svg>
                 </button>
             </div>
@@ -2156,17 +2195,19 @@ and distribution.</span>
         
         <div id="toastContainer"></div>
 
-        <footer class="page-footer">
+        <footer class="page-footer" style="padding-bottom: 56px;">
             <div class="page-footer-inner">
                 <span class="page-footer-section">
-                    <span class="page-footer-glyph">⬢</span>
-                    <span>NNUVA Report</span>
+                    <button type="button" class="page-footer-brand-btn" onclick="resetToBaseline(event)" title="Reset to baseline (clear filters &amp; scroll to top)">
+                        <span class="page-footer-glyph" style="color:var(--primary);">⬢</span>
+                        <span style="font-weight:600;color:var(--text-main);">NNUVA Report</span>
+                        <span class="page-footer-sep">·</span>
+                        <span>v__VERSION__</span>
+                        <span class="page-footer-sep">·</span>
+                        <span>cache parser v__NNUVA_CACHE_VERSION__</span>
+                    </button>
                     <span class="page-footer-sep">·</span>
-                    <span>v__VERSION__</span>
-                    <span class="page-footer-sep">·</span>
-                    <span>cache parser v__NNUVA_CACHE_VERSION__</span>
-                    <span class="page-footer-sep">·</span>
-                    <span class="page-footer-ai-tag" title="Co-engineered &amp; generated with AI">✦ AI-Generated</span>
+                    <a href="https://github.com/hu5h55" target="_blank" rel="noopener noreferrer" class="page-footer-ai-tag" title="Visit our GitHub profile (github.com/hu5h55)">✦ AI-Generated ↗</a>
                 </span>
                 <span class="page-footer-section page-footer-section-right">
                     <a href="https://github.com/hu5h55/nnuva" target="_blank" rel="noopener noreferrer" class="page-footer-link" title="Core CLI &amp; Analyzer Repository (hu5h55/nnuva)">
@@ -2182,10 +2223,24 @@ and distribution.</span>
                     <a href="https://github.com/hu5h55/nnuva#readme" target="_blank" rel="noopener noreferrer" class="page-footer-link">Docs</a>
                     <span class="page-footer-sep">·</span>
                     <a href="https://github.com/hu5h55/nnuva-report/issues" target="_blank" rel="noopener noreferrer" class="page-footer-link">Issues</a>
+                    <span class="page-footer-sep">·</span>
+                    <div class="menu-segment" style="display:inline-flex;">
+                        <button type="button" class="menu-segment-btn" data-theme-opt="light" onclick="setTheme('light')">Light</button>
+                        <button type="button" class="menu-segment-btn" data-theme-opt="dark" onclick="setTheme('dark')">Dark</button>
+                        <button type="button" class="menu-segment-btn" data-theme-opt="oled" onclick="setTheme('oled')">OLED</button>
+                    </div>
                 </span>
             </div>
         </footer>
 
+    </div>
+
+    <!-- FLOATING BOTTOM-RIGHT THEME SWITCH & BASELINE RESET -->
+    <div class="floating-theme-dock" id="floatingThemeDock">
+        <button type="button" class="menu-segment-btn" data-theme-opt="light" onclick="setTheme('light')" title="Light mode">Light</button>
+        <button type="button" class="menu-segment-btn" data-theme-opt="dark" onclick="setTheme('dark')" title="Dark slate mode">Dark</button>
+        <button type="button" class="menu-segment-btn" data-theme-opt="oled" onclick="setTheme('oled')" title="OLED pitch-black mode">OLED</button>
+        <button type="button" class="floating-baseline-btn" onclick="resetToBaseline(event)" title="Reset to baseline (clear filters &amp; scroll to top)" aria-label="Reset to baseline">↑</button>
     </div>
 
     <!-- BOTTOM RAIL — hover notifications only -->
@@ -2269,7 +2324,7 @@ dynamic content -->
                 <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border);">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <h4 style="margin: 0; color: var(--text-main);">NNUVA Project Repositories</h4>
-                        <span class="page-footer-ai-tag">✦ AI-Generated</span>
+                        <a href="https://github.com/hu5h55" target="_blank" rel="noopener noreferrer" class="page-footer-ai-tag" title="Visit our GitHub profile (github.com/hu5h55)">✦ AI-Generated ↗</a>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 14px;">
                         <a href="https://github.com/hu5h55/nnuva" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none; font-size: 0.88rem;">github.com/hu5h55/nnuva (CLI) ↗</a>

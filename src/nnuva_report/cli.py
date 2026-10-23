@@ -9,11 +9,12 @@ from . import VERSION
 def main():
     sys_mgr = SystemManager()
 
-    parser = argparse.ArgumentParser(description=f'{sys_mgr.brand} {Color.CYAN}v{VERSION}{Color.RESET}', add_help=False)
+    parser = argparse.ArgumentParser(description=f'{sys_mgr.brand} {Color.CYAN}v{VERSION}{Color.RESET}')
     parser.add_argument('-i', '--info', action='store_true', help="Show system and database info")
-    parser.add_argument('-o', '--output', type=str, help='Specify custom output path')
+    parser.add_argument('-o', '--output', type=str, help='Specify custom output path (directory or file)')
+    parser.add_argument('-v', '--version', action='version', version=f'{sys_mgr.brand} v{VERSION}')
     
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
 
     if args.info:
         sys_mgr.info()
